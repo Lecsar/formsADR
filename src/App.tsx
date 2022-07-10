@@ -1,26 +1,53 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { useEffect, useState } from 'react';
+import CssBaseline from '@mui/material/CssBaseline';
+import Box from '@mui/material/Box';
+import Container from '@mui/material/Container';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
 
-function App() {
+import { TravelerForm } from './TravelerForm';
+import { FormValues } from './api/types';
+import { apiGetInitialValues } from './api/apiGetInitialValues';
+import { validateOnServer } from './TravelerForm/helpers/validateOnServer';
+
+const theme = createTheme();
+
+export const App = () => {
+  const [initialFormValues, setInitialFormValues] = useState<FormValues>();
+
+  useEffect(() => {
+    apiGetInitialValues().then(setInitialFormValues);
+  }, []);
+
+  const handleSubmit = (values: FormValues) => {
+    return validateOnServer(values);
+  };
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
+    <ThemeProvider theme={theme}>
+      <Container component="main" maxWidth="md">
+        <CssBaseline />
+        <Box
+          sx={{
+            marginTop: 8,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
         >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
-}
+          <Typography component="h1" variant="h5">
+            Pure React Form
+          </Typography>
 
-export default App;
+          {initialFormValues ? (
+            <TravelerForm initialValues={initialFormValues} onFormSubmit={handleSubmit as any} />
+          ) : (
+            <Typography component="h1" variant="h6">
+              Loading initial values...
+            </Typography>
+          )}
+        </Box>
+      </Container>
+    </ThemeProvider>
+  );
+};
