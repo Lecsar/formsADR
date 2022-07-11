@@ -1,18 +1,20 @@
 import { FormValues } from './types';
 
 export const validateOnServer = (values: FormValues) => {
+  const countriesErrors = values.countries?.reduce((acc, country, index) => {
+    if (country.name?.[0]?.toLowerCase() === 'r') {
+      acc[`countries[${index}].name`] = 'First letter should not be R';
+    }
+
+    return acc;
+  }, {} as Record<string, string | undefined>);
+
   const errors = {
+    ...countriesErrors,
     name: values?.name?.[0].toLowerCase() === 'k' ? undefined : 'First letter should be K',
-    countries: Number(values?.countries?.length) > 2 ? undefined : 'Should be more than 2',
-    'countries[0]':
-      values?.countries?.[0].name === 'Russia' && values?.countries?.[0].purpose === 'Work'
-        ? 'Bad country for work'
-        : undefined,
-    'countries[0].name':
-      values?.countries?.[0].name?.[0]?.toLowerCase() === 'l'
-        ? undefined
-        : 'First letter should be l',
   };
+
+  console.log(errors);
 
   const hasErrors = (Object.keys(errors) as Array<keyof typeof errors>).some((key) =>
     Boolean(errors[key]),

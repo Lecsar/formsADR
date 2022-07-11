@@ -12,7 +12,6 @@ import { FormValues } from '../api/types';
 import { validateOnClient } from './helpers/validateOnClient';
 import { GenderRadio } from './components/GenderRadio';
 import { CountryPurposeSelect } from './components/CountryPurposeSelect';
-import { ErrorText } from './components/ErrorText';
 
 interface Props {
   initialValues: FormValues;
@@ -26,12 +25,12 @@ export const TravelerForm = ({ initialValues, onFormSubmit }: Props) => {
     name: formState.name.data,
     age: formState.age.data,
     gender: formState.gender.data,
-    countries: formState.countries.data?.map((i) => ({
-      id: i.data?.id.data as number,
-      name: i.data?.name.data,
-      purpose: i.data?.purpose.data,
-      start: i.data?.start.data,
-      end: i.data?.end.data,
+    countries: formState.countries?.map((i) => ({
+      id: i.id.data as number,
+      name: i.name.data,
+      purpose: i.purpose.data,
+      start: i.start.data,
+      end: i.end.data,
     })),
   };
 
@@ -39,12 +38,12 @@ export const TravelerForm = ({ initialValues, onFormSubmit }: Props) => {
     name: formState.name.error,
     age: formState.age.error,
     gender: formState.gender.error,
-    countries: formState.countries.data?.map((i) => ({
-      id: i.data?.id.error,
-      name: i.data?.name.error,
-      purpose: i.data?.purpose.error,
-      start: i.data?.start.error,
-      end: i.data?.end.error,
+    countries: formState.countries?.map((i) => ({
+      id: i.id.error,
+      name: i.name.error,
+      purpose: i.purpose.error,
+      start: i.start.error,
+      end: i.end.error,
     })),
   };
 
@@ -54,7 +53,7 @@ export const TravelerForm = ({ initialValues, onFormSubmit }: Props) => {
     const errors = validateOnClient(formValues);
 
     if (errors) {
-      dispatch({ type: 'setClientErrors', errors });
+      dispatch({ type: 'setErrors', errors });
       return;
     }
 
@@ -65,7 +64,7 @@ export const TravelerForm = ({ initialValues, onFormSubmit }: Props) => {
         alert(JSON.stringify(formValues));
       })
       .catch((serverErrors) => {
-        dispatch({ type: 'setServerErrors', errors: serverErrors });
+        dispatch({ type: 'setErrors', errors: serverErrors });
       });
   };
 
@@ -213,17 +212,9 @@ export const TravelerForm = ({ initialValues, onFormSubmit }: Props) => {
                     Remove
                   </Button>
                 </Grid>
-
-                {formState.countries.data?.[index].error && (
-                  <ErrorText text={`Item error: ${formState.countries.data[index].error}`} />
-                )}
               </Grid>
             ))}
           </LocalizationProvider>
-
-          {formState.countries.error && (
-            <ErrorText text={`Collection error: ${formState.countries.error}`} />
-          )}
         </Grid>
 
         <Grid item xs={2}>

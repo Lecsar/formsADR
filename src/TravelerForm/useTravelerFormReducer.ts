@@ -1,6 +1,6 @@
 import { useReducer } from 'react';
 
-import { FormValues } from '../api/types';
+import { Country, FormValues } from '../api/types';
 import { createNewCountry } from './helpers/createNewCountry';
 
 type Field<Data> = { data: Data | undefined; error?: string };
@@ -17,7 +17,7 @@ interface FormState {
   name: Field<string>;
   age: Field<number>;
   gender: Field<string>;
-  countries: Field<Field<CountryState>[]>;
+  countries: CountryState[];
 }
 
 type ChangeFieldAction = {
@@ -29,7 +29,7 @@ type ChangeFieldAction = {
 type ChangeCountryFieldAction = {
   type: 'changeCountryField';
   index: number;
-  name: keyof CountryState;
+  name: keyof Country;
   value: any;
 };
 
@@ -42,26 +42,9 @@ type RemoveCountryAction = {
   index: number;
 };
 
-type SetClientErrorsAction = {
-  type: 'setClientErrors';
-  errors: {
-    name?: string;
-    age?: string;
-    gender?: string;
-    countries?: string;
-  };
-};
-
-type SetServerErrorsAction = {
-  type: 'setServerErrors';
-  errors: {
-    name?: string;
-    age?: string;
-    gender?: string;
-    countries?: string;
-    'countries[0]'?: string;
-    'countries[0].name'?: string;
-  };
+type SetErrorsAction = {
+  type: 'setErrors';
+  errors: Record<string, string | undefined>;
 };
 
 type ClearAllErrorsAction = {
@@ -73,8 +56,7 @@ type Action =
   | ChangeCountryFieldAction
   | AddCountryAction
   | RemoveCountryAction
-  | SetClientErrorsAction
-  | SetServerErrorsAction
+  | SetErrorsAction
   | ClearAllErrorsAction;
 
 const travelerFormReducer = (state: FormState, action: Action): FormState => {
@@ -88,17 +70,9 @@ const travelerFormReducer = (state: FormState, action: Action): FormState => {
 
     case 'changeCountryField': {
       const { name, value, index: indexForChange } = action;
-      const newCountriesState: Field<Field<CountryState>[]> = {
-        data: state.countries.data?.map((i, index) =>
-          index === indexForChange
-            ? {
-                data: { ...(i.data as any), [name]: { data: value, error: undefined } },
-                error: undefined,
-              }
-            : i,
-        ),
-        error: undefined,
-      };
+      const newCountriesState: CountryState[] = state.countries.map((i, index) =>
+        index === indexForChange ? { ...(i as any), [name]: { data: value, error: undefined } } : i,
+      );
 
       const newState: FormState = { ...state, countries: newCountriesState };
       return newState;
@@ -108,22 +82,16 @@ const travelerFormReducer = (state: FormState, action: Action): FormState => {
       const newCountry = createNewCountry();
       const newState: FormState = {
         ...state,
-        countries: {
-          data: [
-            ...(state.countries.data || []),
-            {
-              data: {
-                id: { data: newCountry.id, error: undefined },
-                name: { data: newCountry.name, error: undefined },
-                purpose: { data: newCountry.purpose, error: undefined },
-                start: { data: newCountry.start, error: undefined },
-                end: { data: newCountry.end, error: undefined },
-              },
-              error: undefined,
-            },
-          ],
-          error: undefined,
-        },
+        countries: [
+          ...state.countries,
+          {
+            id: { data: newCountry.id as number, error: undefined },
+            name: { data: newCountry.name, error: undefined },
+            purpose: { data: newCountry.purpose, error: undefined },
+            start: { data: newCountry.start, error: undefined },
+            end: { data: newCountry.end, error: undefined },
+          },
+        ],
       };
 
       return newState;
@@ -132,53 +100,32 @@ const travelerFormReducer = (state: FormState, action: Action): FormState => {
       const { index: removedCountryIndex } = action;
       const newState: FormState = {
         ...state,
-        countries: {
-          data: (state.countries.data || []).filter((_, index) => index !== removedCountryIndex),
-          error: undefined,
-        },
+        countries: (state.countries || []).filter((_, index) => index !== removedCountryIndex),
       };
 
       return newState;
     }
 
-    case 'setClientErrors': {
+    case 'setErrors': {
       const { errors } = action;
       const newState: FormState = {
         name: { data: state.name.data, error: errors.name },
         age: { data: state.age.data, error: errors.age },
         gender: { data: state.gender.data, error: errors.gender },
-        countries: {
-          data: state.countries.data,
-          error: errors.countries,
-        },
+        countries: state.countries.map((i, index) => ({
+          id: {
+            data: i.id.data as number,
+            error: errors[`countries[${index}].id`] ?? undefined,
+          },
+          name: { data: i.name.data, error: errors[`countries[${index}].name`] ?? undefined },
+          purpose: {
+            data: i.purpose.data,
+            error: errors[`countries[${index}].purpose`] ?? undefined,
+          },
+          start: { data: i.start.data, error: errors[`countries[${index}].start`] ?? undefined },
+          end: { data: i.end.data, error: errors[`countries[${index}].end`] ?? undefined },
+        })),
       };
-
-      return newState;
-    }
-
-    case 'setServerErrors': {
-      const { errors } = action;
-      const newState: FormState = {
-        name: { data: state.name.data, error: errors.name },
-        age: { data: state.age.data, error: errors.age },
-        gender: { data: state.gender.data, error: errors.gender },
-        countries: {
-          data: state.countries.data,
-          error: errors.countries,
-        },
-      };
-
-      console.log(errors);
-
-      // I don't wont to parse backend errors, it's crutch
-      if (errors['countries[0]'] && newState.countries.data?.[0]) {
-        newState.countries.data[0].error = errors['countries[0]'];
-      }
-
-      if (errors['countries[0].name'] && newState.countries.data?.[0]?.data?.name) {
-        newState.countries.data[0].data.name.error = errors['countries[0].name'];
-      }
-      //
 
       return newState;
     }
@@ -188,19 +135,13 @@ const travelerFormReducer = (state: FormState, action: Action): FormState => {
         name: { data: state.name.data, error: undefined },
         age: { data: state.age.data, error: undefined },
         gender: { data: state.gender.data, error: undefined },
-        countries: {
-          data: state.countries.data?.map((i) => ({
-            data: {
-              id: { data: i.data?.id.data as number, error: undefined },
-              name: { data: i.data?.name.data, error: undefined },
-              start: { data: i.data?.start.data, error: undefined },
-              end: { data: i.data?.end.data, error: undefined },
-              purpose: { data: i.data?.purpose.data, error: undefined },
-            },
-            error: undefined,
-          })),
-          error: undefined,
-        },
+        countries: state.countries?.map((i) => ({
+          id: { data: i.id.data as number, error: undefined },
+          name: { data: i.name.data, error: undefined },
+          start: { data: i.start.data, error: undefined },
+          end: { data: i.end.data, error: undefined },
+          purpose: { data: i.purpose.data, error: undefined },
+        })),
       };
 
       return newState;
@@ -216,21 +157,15 @@ export const useTravelerFormReducer = (initialFormValues?: FormValues) => {
     name: { data: initialFormValues?.name || '', error: undefined },
     age: { data: initialFormValues?.age, error: undefined },
     gender: { data: initialFormValues?.gender || '', error: undefined },
-    countries: {
-      data: initialFormValues?.countries?.map(
-        (i): Field<CountryState> => ({
-          data: {
-            id: { data: i.id, error: undefined },
-            name: { data: i.name, error: undefined },
-            purpose: { data: i.purpose, error: undefined },
-            start: { data: i.start, error: undefined },
-            end: { data: i.end, error: undefined },
-          },
-          error: undefined,
-        }),
-      ),
-      error: undefined,
-    },
+    countries: (initialFormValues?.countries || []).map(
+      (i): CountryState => ({
+        id: { data: i.id, error: undefined },
+        name: { data: i.name, error: undefined },
+        purpose: { data: i.purpose, error: undefined },
+        start: { data: i.start, error: undefined },
+        end: { data: i.end, error: undefined },
+      }),
+    ),
   };
 
   return useReducer(travelerFormReducer, initialState);
