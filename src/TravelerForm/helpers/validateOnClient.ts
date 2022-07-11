@@ -1,29 +1,29 @@
+import * as yup from 'yup';
+
 import { FormValues } from '../../api/types';
 
-export const validateOnClient = (
-  values: FormValues,
-): Record<string, string | undefined> | undefined => {
-  const countriesErrors = values.countries?.reduce((acc, country, index) => {
-    if (!country.name) {
-      acc[`countries[${index}].name`] = 'Required';
-    }
+const formSchema = yup.object({
+  name: yup.string().required('Name is required'),
+  age: yup.number().min(30, 'Should be more than 30'),
+  countries: yup.array().of(
+    yup.object({
+      name: yup.string().required('Name is required'),
+      purpose: yup.string().required('Purpose is required'),
+    }),
+  ),
+});
 
-    if (!country.purpose) {
-      acc[`countries[${index}].purpose`] = 'Required';
-    }
-
+const collectErrors = (error: yup.ValidationError) =>
+  error.inner.reduce((acc: any, { path, message }: any) => {
+    acc[path] = message;
     return acc;
-  }, {} as Record<string, string | undefined>);
+  }, {} as Record<string, string>);
 
-  const errors = {
-    ...countriesErrors,
-    name: values?.name ? undefined : 'Required',
-    age: Number(values?.age) > 30 ? undefined : 'Should be more than 30',
-  };
-
-  const hasErrors = (Object.keys(errors) as Array<keyof typeof errors>).some((key) =>
-    Boolean(errors[key]),
-  );
-
-  return hasErrors ? errors : undefined;
+export const validateOnClient = (values: FormValues): Record<string, string> | undefined => {
+  try {
+    formSchema.validateSync(values, { abortEarly: false });
+    return undefined;
+  } catch (validationErrors) {
+    return collectErrors(validationErrors as yup.ValidationError);
+  }
 };
