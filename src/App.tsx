@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 import { TravelerForm } from './TravelerForm';
 import { FormValues } from './api/types';
 import { apiGetInitialValues } from './api/apiGetInitialValues';
-import { validateOnServer } from './TravelerForm/helpers/validateOnServer';
+import { validateOnServer } from './api/validateOnServer';
 
 const theme = createTheme();
 
@@ -18,10 +18,6 @@ export const App = () => {
   useEffect(() => {
     apiGetInitialValues().then(setInitialFormValues);
   }, []);
-
-  const handleSubmit = (values: FormValues) => {
-    return validateOnServer(values);
-  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -40,7 +36,7 @@ export const App = () => {
           </Typography>
 
           {initialFormValues ? (
-            <TravelerForm initialValues={initialFormValues} onFormSubmit={handleSubmit as any} />
+            <TravelerForm initialValues={initialFormValues} onFormSubmit={validateOnServer} />
           ) : (
             <Typography component="h1" variant="h6">
               Loading initial values...

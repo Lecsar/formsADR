@@ -1,4 +1,4 @@
-import { FormValues } from '../../api/types';
+import { FormValues } from './types';
 
 export const validateOnServer = (values: FormValues) => {
   const errors = {
