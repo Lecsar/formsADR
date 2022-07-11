@@ -6,12 +6,18 @@ import Typography from '@mui/material/Typography';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterMoment } from '@mui/x-date-pickers/AdapterMoment';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormLabel from '@mui/material/FormLabel';
 
-import { useTravelerFormReducer } from './useTravelerFormReducer';
 import { FormValues } from '../api/types';
-import { validateOnClient } from './helpers/validateOnClient';
-import { GenderRadio } from './components/GenderRadio';
-import { CountryPurposeSelect } from './components/CountryPurposeSelect';
+import { createNewCountry } from './helpers/createNewCountry';
 
 interface Props {
   initialValues: FormValues;
@@ -19,110 +25,71 @@ interface Props {
 }
 
 export const TravelerForm = ({ initialValues, onFormSubmit }: Props) => {
-  const [formState, dispatch] = useTravelerFormReducer(initialValues);
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+    setError,
+  } = useForm({ defaultValues: initialValues });
 
-  const formValues: FormValues = {
-    name: formState.name.data,
-    age: formState.age.data,
-    gender: formState.gender.data,
-    countries: formState.countries?.map((i) => ({
-      id: i.id.data as number,
-      name: i.name.data,
-      purpose: i.purpose.data,
-      start: i.start.data,
-      end: i.end.data,
-    })),
-  };
+  const { fields, append, remove } = useFieldArray({
+    name: 'countries',
+    control,
+  });
 
-  const formErrors = {
-    name: formState.name.error,
-    age: formState.age.error,
-    gender: formState.gender.error,
-    countries: formState.countries?.map((i) => ({
-      id: i.id.error,
-      name: i.name.error,
-      purpose: i.purpose.error,
-      start: i.start.error,
-      end: i.end.error,
-    })),
-  };
-
-  const handleSubmit = (e: any) => {
-    e.preventDefault();
-
-    const errors = validateOnClient(formValues);
-
-    if (errors) {
-      dispatch({ type: 'setErrors', errors });
-      return;
-    }
-
-    dispatch({ type: 'clearAllErrors' });
-
+  const handleValid = (formValues: FormValues) => {
     onFormSubmit(formValues)
       .then(() => {
         alert(JSON.stringify(formValues));
       })
-      .catch((serverErrors) => {
-        dispatch({ type: 'setErrors', errors: serverErrors });
+      .catch((errors) => {
+        Object.keys(errors).forEach((fieldName) => {
+          setError(fieldName as any, { message: errors[fieldName] });
+        });
       });
   };
 
   return (
-    <Box component="form" noValidate onSubmit={handleSubmit} sx={{ mt: 3 }}>
+    <Box component="form" noValidate onSubmit={handleSubmit(handleValid)} sx={{ mt: 3 }}>
       <Grid container spacing={2}>
         <Grid item xs={6}>
           <TextField
-            id="name"
-            name="name"
             label="First Name"
-            value={formValues.name}
-            onChange={({ target }) =>
-              dispatch({
-                type: 'changeFieldValue',
-                name: target.name as any,
-                value: target.value,
-              })
-            }
-            helperText={formErrors.name}
-            error={Boolean(formErrors.name)}
             fullWidth
             autoFocus
+            helperText={errors.name?.message}
+            error={Boolean(errors.name)}
+            {...register('name', { required: 'Required' })}
           />
         </Grid>
 
         <Grid item xs={6}>
           <TextField
-            id="age"
-            name="age"
             label="Age"
             type="number"
-            value={formValues.age}
-            helperText={formErrors.age}
-            error={Boolean(formErrors.age)}
-            onChange={({ target }) =>
-              dispatch({
-                type: 'changeFieldValue',
-                name: target.name as any,
-                value: Number(target.value),
-              })
-            }
+            helperText={errors.age?.message}
+            error={Boolean(errors.age)}
             fullWidth
+            {...register('age', { min: { value: 30, message: 'Should be more than 30' } })}
           />
         </Grid>
 
         <Grid item xs={12}>
-          <GenderRadio
-            value={formValues.gender}
-            error={formErrors.gender}
-            onChange={(value) =>
-              dispatch({
-                type: 'changeFieldValue',
-                name: 'gender',
-                value,
-              })
-            }
-          />
+          <FormControl>
+            <FormLabel error={Boolean(errors.gender)}>Gender</FormLabel>
+
+            <Controller
+              control={control}
+              name="gender"
+              render={({ field: { onChange, onBlur, value, ref } }) => (
+                <RadioGroup ref={ref} value={value} onChange={onChange} onBlur={onBlur}>
+                  <FormControlLabel value="female" control={<Radio />} label="Female" />
+                  <FormControlLabel value="male" control={<Radio />} label="Male" />
+                </RadioGroup>
+              )}
+            />
+          </FormControl>
         </Grid>
 
         <Grid item xs={12}>
@@ -131,72 +98,78 @@ export const TravelerForm = ({ initialValues, onFormSubmit }: Props) => {
           </Typography>
 
           <LocalizationProvider dateAdapter={AdapterMoment}>
-            {formValues.countries?.map((country, index) => (
+            {fields.map((country, index) => (
               <Grid key={country.id} container spacing={1} sx={{ mb: 3 }}>
                 <Grid item xs={2.5}>
                   <TextField
-                    name="name"
                     label="Country name"
-                    value={country.name}
-                    helperText={formErrors.countries?.[index].name}
-                    error={Boolean(formErrors.countries?.[index].name)}
-                    onChange={({ target }) =>
-                      dispatch({
-                        type: 'changeCountryField',
-                        index,
-                        name: 'name',
-                        value: target.value,
-                      })
-                    }
                     fullWidth
                     autoFocus
+                    helperText={errors.countries?.[index]?.name?.message}
+                    error={Boolean(errors.countries?.[index]?.name?.message)}
+                    {...register(`countries.${index}.name`, { required: 'Required' })}
                   />
                 </Grid>
 
                 <Grid item xs={2}>
-                  <CountryPurposeSelect
-                    value={country.purpose}
-                    error={formErrors.countries?.[index].purpose}
-                    onChange={(value) =>
-                      dispatch({
-                        type: 'changeCountryField',
-                        index,
-                        name: 'purpose',
-                        value,
-                      })
-                    }
+                  <FormControl fullWidth>
+                    <InputLabel>Purpose</InputLabel>
+
+                    <Controller
+                      control={control}
+                      name={`countries.${index}.purpose`}
+                      rules={{ required: 'Required' }}
+                      render={({ field: { onChange, onBlur, value, ref } }) => (
+                        <Select
+                          ref={ref}
+                          label="Purpose"
+                          value={value}
+                          onChange={onChange}
+                          onBlur={onBlur}
+                          error={Boolean(errors.countries?.[index]?.purpose?.message)}
+                        >
+                          <MenuItem value="Work">Work</MenuItem>
+                          <MenuItem value="Tourism">Tourism</MenuItem>
+                          <MenuItem value="Other">Other</MenuItem>
+                        </Select>
+                      )}
+                    />
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={3}>
+                  <Controller
+                    control={control}
+                    name={`countries.${index}.start`}
+                    render={({ field: { onChange, onBlur, value, ref } }) => (
+                      <DatePicker
+                        ref={ref}
+                        label="Start visit"
+                        value={value}
+                        // @ts-expect-error
+                        onBlur={onBlur as any}
+                        onChange={(value: any) => onChange(value.toISOString())}
+                        renderInput={(params) => <TextField {...params} />}
+                      />
+                    )}
                   />
                 </Grid>
 
                 <Grid item xs={3}>
-                  <DatePicker
-                    label="Start visit"
-                    value={country.start}
-                    onChange={(value: any) =>
-                      dispatch({
-                        type: 'changeCountryField',
-                        index,
-                        name: 'start',
-                        value: value.toISOString(),
-                      })
-                    }
-                    renderInput={(params) => <TextField {...params} />}
-                  />
-                </Grid>
-
-                <Grid item xs={3}>
-                  <DatePicker
-                    label="End visit"
-                    value={country.end}
-                    onChange={(value: any) =>
-                      dispatch({
-                        type: 'changeCountryField',
-                        index,
-                        name: 'end',
-                        value: value.toISOString(),
-                      })
-                    }
-                    renderInput={(params) => <TextField {...params} />}
+                  <Controller
+                    control={control}
+                    name={`countries.${index}.end`}
+                    render={({ field: { onChange, onBlur, value, ref } }) => (
+                      <DatePicker
+                        ref={ref}
+                        label="End visit"
+                        value={value}
+                        // @ts-expect-error
+                        onBlur={onBlur as any}
+                        onChange={(value: any) => onChange(value.toISOString())}
+                        renderInput={(params) => <TextField {...params} />}
+                      />
+                    )}
                   />
                 </Grid>
 
@@ -207,7 +180,7 @@ export const TravelerForm = ({ initialValues, onFormSubmit }: Props) => {
                     variant="contained"
                     color="error"
                     sx={{ mt: 1 }}
-                    onClick={() => dispatch({ type: 'removeCountry', index })}
+                    onClick={() => remove(index)}
                   >
                     Remove
                   </Button>
@@ -222,7 +195,7 @@ export const TravelerForm = ({ initialValues, onFormSubmit }: Props) => {
             type="button"
             fullWidth
             variant="contained"
-            onClick={() => dispatch({ type: 'addCountry' })}
+            onClick={() => append(createNewCountry())}
           >
             Add
           </Button>
